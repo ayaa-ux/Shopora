@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Style de base de toute l'application. On applique ici la palette et la
+   police par défaut, pour ne jamais avoir à les répéter dans chaque composant. */
+body {
+    @apply bg-linen text-ink font-sans antialiased;
+}

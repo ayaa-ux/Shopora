@@ -1,0 +1,115 @@
+services:
+
+  # --- Base de données : pgvector ---
+  postgres-db:
+    image: pgvector/pgvector:pg16
+    container_name: shopora-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_USER} # <--- ضروري تزيد هادي باش تحددي قاعدة البيانات الافتراضية
+    ports:
+      - "5432:5432"
+    volumes:
+      - shopora_pg_data:/var/lib/postgresql/data
+      - ./db/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh
+    networks:
+      - shopora-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_USER}"] # <--- زدنا اسم قاعدة البيانات هنا باش يتأكد أنها واجدة نيت
+      interval: 10s # <--- عطيناه وقت فين يتنفس (10 ثواني) ف الشعلة الثانية
+      timeout: 5s
+      retries: 5
+
+  # --- Les 5 microservices Spring Boot ---
+  auth-service:
+    build:
+      context: ./auth-service
+    container_name: shopora-auth-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    networks:
+      - shopora-network
+
+  catalog-service:
+    build:
+      context: ./catalog-service
+    container_name: shopora-catalog-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    ports:
+      - "8082:8082"
+    networks:
+      - shopora-network
+
+  groupbuying-service:
+    build:
+      context: ./groupbuying-service
+    container_name: shopora-groupbuying-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    networks:
+      - shopora-network
+
+  ai-assistant-service:
+    build:
+      context: ./ai-assistant-service
+    container_name: shopora-ai-assistant-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      XAI_API_KEY: ${XAI_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    ports:
+      - "8084:8084"
+    networks:
+      - shopora-network
+
+  # --- Point d'entrée unique ---
+  api-gateway:
+    build:
+      context: ./api-gateway
+    container_name: shopora-gateway
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      auth-service: # <--- ردي البال هنا! خاص الترتيب يكون صحيح بـ condition
+        condition: service_started
+      catalog-service:
+        condition: service_started
+      groupbuying-service:
+        condition: service_started
+      ai-assistant-service:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    networks:
+      - shopora-network
+
+networks:
+  shopora-network:
+    driver: bridge
+
+volumes:
+  shopora_pg_data: # هادي متبدليهاش، راها صحيحة ومسؤولة على حفظ البيانات

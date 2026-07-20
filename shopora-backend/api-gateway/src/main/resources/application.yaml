@@ -1,0 +1,106 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      routes:
+        - id: auth-service-route
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/auth/**
+
+        - id: catalog-products-route
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/products/**
+
+        - id: catalog-offers-route
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/offers/**
+
+        - id: groupbuying-sessions-route
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/sessions/**
+
+        - id: groupbuying-participations-route
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/participations/**
+
+        - id: groupbuying-websocket-route
+          uri: ws://localhost:8083
+          predicates:
+            - Path=/ws-groupbuying/**
+
+        - id: ai-assistant-route
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/assistant/**
+
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "http://localhost:5173"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+
+---
+# Profil "docker" : remplace TOUTES les URI localhost:PORT par les noms
+# des services Docker. Spring Cloud Gateway recharge entièrement la liste
+# "routes" dans ce bloc -> on doit redéclarer les 7 routes en entier,
+# pas seulement les champs qui changent (contrairement à "datasource.url"
+# plus simple dans les autres services).
+spring:
+  config:
+    activate:
+      on-profile: docker
+  cloud:
+    gateway:
+      routes:
+        - id: auth-service-route
+          uri: http://auth-service:8081
+          predicates:
+            - Path=/api/auth/**
+
+        - id: catalog-products-route
+          uri: http://catalog-service:8082
+          predicates:
+            - Path=/api/products/**
+
+        - id: catalog-offers-route
+          uri: http://catalog-service:8082
+          predicates:
+            - Path=/api/offers/**
+
+        - id: groupbuying-sessions-route
+          uri: http://groupbuying-service:8083
+          predicates:
+            - Path=/api/sessions/**
+
+        - id: groupbuying-participations-route
+          uri: http://groupbuying-service:8083
+          predicates:
+            - Path=/api/participations/**
+
+        - id: groupbuying-websocket-route
+          uri: ws://groupbuying-service:8083
+          predicates:
+            - Path=/ws-groupbuying/**
+
+        - id: ai-assistant-route
+          uri: http://ai-assistant-service:8084
+          predicates:
+            - Path=/api/assistant/**

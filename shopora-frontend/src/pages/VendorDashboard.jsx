@@ -5,7 +5,7 @@ import {
     Plus, X, Pencil, Trash2, Check,
 } from 'lucide-react'
 import {
-    getMyOffers, getAllProducts, createProduct, createOffer, updateOffer, deleteOffer,
+    getMyOffers, getAllProducts, createProduct, createOffer, updateOffer, deleteOffer, findSimilarByName,
 } from '../api/catalogApi'
 import { createSession, getMySessions, updateSession, deleteSession } from '../api/groupBuyingApi'
 import Navbar from '../components/layout/Navbar'
@@ -126,6 +126,9 @@ function useModalForm(initial, validate, submit, onSuccess, onClose) {
 // ─── Modale : Nouveau produit ─────────────────────────────────────────────────
 
 function AddProductModal({ onClose, onSuccess }) {
+    // Doublons détectés + fiche existante choisie par le vendeur
+    const [duplicates, setDuplicates] = useState([])
+    const [existing, setExisting] = useState(null)
     const { form, errors, loading, success, handleChange, handleSubmit } = useModalForm(
         { name: '', description: '', category: '', imageUrl: '', price: '', stockQuantity: '' },
         (f) => {
@@ -137,7 +140,8 @@ function AddProductModal({ onClose, onSuccess }) {
             return e
         },
         async (f) => {
-            const product = await createProduct({
+            // Si le vendeur choisit une fiche existante, on ajoute seulement son offre
+            const product = existing || await createProduct({
                 name: f.name,
                 description: f.description,
                 category: f.category,
@@ -153,6 +157,17 @@ function AddProductModal({ onClose, onSuccess }) {
         onClose
     )
 
+    // Recherche de fiches similaires (anti-doublon) dès que nom + catégorie sont saisis
+    useEffect(() => {
+        setExisting(null)
+        if (form.name.trim().length < 3 || !form.category) { setDuplicates([]); return }
+        const timer = setTimeout(() => {
+            findSimilarByName(form.name.trim(), form.category)
+                .then(setDuplicates).catch(() => setDuplicates([]))
+        }, 400)
+        return () => clearTimeout(timer)
+    }, [form.name, form.category])
+
     return (
         <ModalShell title="Nouveau produit" onClose={onClose} success={success} successText="Produit publié avec succès !">
             <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
@@ -160,6 +175,32 @@ function AddProductModal({ onClose, onSuccess }) {
                     <input name="name" value={form.name} onChange={handleChange}
                            placeholder="Ex : Robe florale midi" className={inputCls(errors.name)} />
                 </Field>
+
+                {duplicates.length > 0 && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+                        <p className="text-xs text-ink">
+                            Ce produit existe peut-être déjà. Publiez votre prix sur la fiche existante
+                            pour que les clients puissent comparer les vendeurs :
+                        </p>
+                        {duplicates.slice(0, 3).map((d) => (
+                            <label key={d.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                                <input type="radio" name="existingProduct"
+                                       checked={existing?.id === d.id}
+                                       onChange={() => setExisting(d)} />
+                                <span className="flex-1 truncate">{d.name}</span>
+                                <span className="text-xs text-gray-500">
+                                    {d.bestPrice != null ? `dès ${d.bestPrice} MAD` : 'sans offre'}
+                                </span>
+                            </label>
+                        ))}
+                        {existing && (
+                            <button type="button" onClick={() => setExisting(null)}
+                                    className="text-xs text-clay underline">
+                                Non, créer une nouvelle fiche
+                            </button>
+                        )}
+                    </div>
+                )}
 
                 <Field label="Description">
                     <textarea name="description" value={form.description} onChange={handleChange}

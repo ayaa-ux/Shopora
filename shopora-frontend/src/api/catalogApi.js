@@ -15,6 +15,18 @@ export async function getProductById(id) {
     return response.data
 }
 
+// Comparateur : produits similaires à un produit existant
+export async function getSimilarProducts(id) {
+    const response = await axiosClient.get(`/api/products/${id}/similar`)
+    return response.data
+}
+
+// Détection de doublon avant création d'une fiche produit
+export async function findSimilarByName(name, category) {
+    const response = await axiosClient.get('/api/products/similar', { params: { name, category } })
+    return response.data
+}
+
 // payload : { name, description, category, imageUrl } -> ProductRequest.java
 export async function createProduct(payload) {
     const response = await axiosClient.post('/api/products', payload)

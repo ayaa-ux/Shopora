@@ -83,6 +83,8 @@ services:
       - .env
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      XAI_API_KEY: ${XAI_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-shopora-internal-dev-key}
     depends_on:
       postgres-db:

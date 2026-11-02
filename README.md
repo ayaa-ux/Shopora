@@ -72,3 +72,9 @@ Après un import de produits, un administrateur peut réindexer depuis l'onglet 
 
 - Un compte désactivé conserve un token valide jusqu'à son expiration.
 - Pas d'annulation de commande par le client.
+
+## Comparateur de prix (produits similaires)
+
+- `GET /api/products/{id}/similar` : fiches proches (même catégorie, noms comparés par similarité de Jaccard, nombres identiques obligatoires), triées par meilleur prix en stock.
+- `GET /api/products/similar?name=&category=` : détection de doublon avant création d'une fiche.
+- Page produit : bandeau « Meilleur prix ailleurs » et section « Produits similaires ». Côté vendeur, le formulaire propose de publier son offre sur une fiche existante.

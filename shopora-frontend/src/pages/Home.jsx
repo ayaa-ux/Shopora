@@ -8,7 +8,7 @@ import ComparatorShowcase from '../components/home/ComparatorShowcase'
 import AssistantShowcase from '../components/home/AssistantShowcase'
 import CTASection from '../components/home/CTASection'
 import Footer from '../components/home/Footer'
-import { ShoppingBag } from 'lucide-react'
+import { Star, ShoppingBag } from 'lucide-react'
 
 function PopularProductCard({ product, onClick }) {
     return (
@@ -32,6 +32,10 @@ function PopularProductCard({ product, onClick }) {
             <div className="p-4">
                 <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">ShopOra</p>
                 <h3 className="font-semibold text-ink text-sm mb-1 truncate">{product.name}</h3>
+                <div className="flex items-center gap-1 mb-2">
+                    <Star size={12} className="text-yellow-400 fill-yellow-400" />
+                    <span className="text-xs text-gray-400">4.5 · 86 avis</span>
+                </div>
                 <div className="flex items-center justify-between">
           <span className="font-bold text-ink text-sm">
             {product.lowestPrice ? `${product.lowestPrice} MAD` : 'Non disponible'}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ShoppingBag, ArrowLeft, Shield, Truck } from 'lucide-react'
-import { getProductById, getOffersByProduct, createOffer } from '../api/catalogApi'
+import { getProductById, getOffersByProduct, createOffer, getSimilarProducts } from '../api/catalogApi'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 
@@ -13,6 +13,7 @@ export default function ProductDetail() {
 
     const [product, setProduct] = useState(null)
     const [offers, setOffers] = useState([])
+    const [similar, setSimilar] = useState([])
     const [loading, setLoading] = useState(true)
     const [errorMessage, setErrorMessage] = useState('')
 
@@ -34,6 +35,8 @@ export default function ProductDetail() {
             ])
             setProduct(productData)
             setOffers(offersData)
+            // Le comparateur de produits similaires ne doit jamais bloquer la page
+            getSimilarProducts(id).then(setSimilar).catch(() => setSimilar([]))
         } catch {
             setErrorMessage('Impossible de charger ce produit.')
         } finally {
@@ -92,7 +95,15 @@ export default function ProductDetail() {
 
     if (!product) return null
 
-    const bestOffer = offers[0]
+    // Meilleure offre EN STOCK de ce produit
+    const bestOffer = offers.find((o) => o.stockQuantity > 0) || offers[0]
+    // Un produit similaire est-il moins cher ?
+    const cheaperSimilar = similar
+        .filter((p) => p.bestPrice != null && (!bestOffer || Number(p.bestPrice) < Number(bestOffer.price)))
+        .sort((a, b) => Number(a.bestPrice) - Number(b.bestPrice))[0]
+    const saving = cheaperSimilar && bestOffer
+        ? (Number(bestOffer.price) - Number(cheaperSimilar.bestPrice)).toFixed(2).replace(/\.00$/, '')
+        : null
 
     return (
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -104,6 +115,22 @@ export default function ProductDetail() {
             >
                 <ArrowLeft size={16} /> Catalogue
             </button>
+
+            {cheaperSimilar && (
+                <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-ink">
+                        <strong>Meilleur prix ailleurs :</strong> « {cheaperSimilar.name} » est proposé à{' '}
+                        <strong>{cheaperSimilar.bestPrice} MAD</strong>
+                        {saving ? <> — vous économisez <strong>{saving} MAD</strong></> : null}.
+                    </p>
+                    <button
+                        onClick={() => navigate(`/catalogue/${cheaperSimilar.id}`)}
+                        className="text-sm font-semibold text-clay hover:text-clay-dark"
+                    >
+                        Voir l'offre →
+                    </button>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
 
@@ -225,6 +252,65 @@ export default function ProductDetail() {
                     </div>
                 )}
             </div>
+
+            {/* Produits similaires : comparaison des prix entre fiches proches */}
+            {similar.length > 0 && (
+                <div className="mt-12">
+                    <h2 className="font-display text-2xl font-bold text-ink mb-2">
+                        Produits similaires
+                    </h2>
+                    <p className="text-ink-light text-sm mb-6">
+                        Le même article vendu sous une autre fiche : comparez et gardez le meilleur prix.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {similar.map((p) => {
+                            const isBest = p.bestPrice != null && p.id === similar.find((x) => x.bestPrice != null)?.id
+                                && (!bestOffer || Number(p.bestPrice) < Number(bestOffer.price))
+                            const diff = p.bestPrice != null && bestOffer
+                                ? Number(p.bestPrice) - Number(bestOffer.price) : null
+                            return (
+                                <button
+                                    key={p.id}
+                                    onClick={() => navigate(`/catalogue/${p.id}`)}
+                                    className="text-left border border-gray-100 rounded-2xl overflow-hidden hover:shadow-md transition-shadow bg-white"
+                                >
+                                    <div className="aspect-[4/3] bg-gray-50">
+                                        {p.imageUrl && (
+                                            <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
+                                        )}
+                                    </div>
+                                    <div className="p-4">
+                                        <p className="text-sm font-medium text-ink truncate">{p.name}</p>
+                                        {p.bestPrice != null ? (
+                                            <>
+                                                <p className="font-bold text-lg text-ink mt-1">{p.bestPrice} MAD</p>
+                                                <p className="text-xs text-gray-400 truncate">{p.bestVendorEmail}</p>
+                                                <div className="mt-2 flex flex-wrap gap-2">
+                                                    {isBest && (
+                                                        <span className="text-[10px] bg-clay text-white px-2 py-0.5 rounded-full font-medium">
+                                                            MEILLEUR PRIX
+                                                        </span>
+                                                    )}
+                                                    {diff !== null && diff !== 0 && (
+                                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                                                            diff < 0 ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
+                                                        }`}>
+                                                            {diff < 0 ? `${Math.abs(diff).toFixed(2).replace(/\.00$/, '')} MAD moins cher`
+                                                                : `+${diff.toFixed(2).replace(/\.00$/, '')} MAD`}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <p className="text-xs text-ink-light italic mt-1">Indisponible</p>
+                                        )}
+                                    </div>
+                                </button>
+                            )
+                        })}
+                    </div>
+                </div>
+            )}
 
             {/* Formulaire VENDOR */}
             {role === 'VENDOR' && (

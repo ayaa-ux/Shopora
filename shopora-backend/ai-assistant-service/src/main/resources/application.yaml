@@ -11,9 +11,9 @@ jwt:
 
 ai:
   chat:
-    api-key: ${AI_API_KEY}
-    base-url: ${AI_BASE_URL:https://api.groq.com/openai/v1}
-    model-name: ${AI_MODEL:openai/gpt-oss-120b}
+    api-key: ${AI_API_KEY:${XAI_API_KEY:demo-key-to-replace}}
+    base-url: ${AI_BASE_URL:https://api.x.ai/v1}
+    model-name: ${AI_MODEL:grok-2-latest}
 
   vector-store:
     host: localhost

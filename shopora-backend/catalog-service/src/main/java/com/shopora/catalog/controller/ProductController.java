@@ -2,7 +2,9 @@ package com.shopora.catalog.controller;
 
 import com.shopora.catalog.dto.ProductRequest;
 import com.shopora.catalog.dto.ProductResponse;
+import com.shopora.catalog.dto.SimilarProductResponse;
 import com.shopora.catalog.service.ProductIndexingService;
+import com.shopora.catalog.service.ProductSimilarityService;
 import com.shopora.catalog.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,7 @@ public class ProductController {
 
     private final ProductService productService;
     private final ProductIndexingService indexingService;
+    private final ProductSimilarityService similarityService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('VENDOR', 'ADMIN')")
@@ -35,6 +38,19 @@ public class ProductController {
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponse> getProductById(@PathVariable Long id) {
         return ResponseEntity.ok(productService.getProductById(id));
+    }
+
+    /** Comparateur : produits similaires (même article créé par d'autres vendeurs). */
+    @GetMapping("/{id}/similar")
+    public ResponseEntity<List<SimilarProductResponse>> getSimilar(@PathVariable Long id) {
+        return ResponseEntity.ok(similarityService.findSimilarTo(id));
+    }
+
+    /** Détection de doublon avant création d'une fiche produit. */
+    @GetMapping("/similar")
+    public ResponseEntity<List<SimilarProductResponse>> findSimilarByName(@RequestParam String name,
+                                                                          @RequestParam String category) {
+        return ResponseEntity.ok(similarityService.findSimilar(name, category, null));
     }
 
     @GetMapping("/search")

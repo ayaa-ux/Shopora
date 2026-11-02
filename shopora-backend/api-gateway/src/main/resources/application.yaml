@@ -7,6 +7,10 @@ spring:
 
   cloud:
     gateway:
+      # Empêche un client externe d'usurper l'appel interne catalog -> ai
+      default-filters:
+        - RemoveRequestHeader=X-Internal-Key
+
       routes:
         - id: auth-service-route
           uri: http://localhost:8081
@@ -38,6 +42,11 @@ spring:
           predicates:
             - Path=/ws-groupbuying/**
 
+        - id: order-service-route
+          uri: http://localhost:8085
+          predicates:
+            - Path=/api/orders/**
+
         - id: ai-assistant-route
           uri: http://localhost:8084
           predicates:
@@ -58,11 +67,7 @@ spring:
             allowCredentials: true
 
 ---
-# Profil "docker" : remplace TOUTES les URI localhost:PORT par les noms
-# des services Docker. Spring Cloud Gateway recharge entièrement la liste
-# "routes" dans ce bloc -> on doit redéclarer les 7 routes en entier,
-# pas seulement les champs qui changent (contrairement à "datasource.url"
-# plus simple dans les autres services).
+# Profil "docker" : les URI localhost deviennent des noms de services Docker.
 spring:
   config:
     activate:
@@ -99,6 +104,11 @@ spring:
           uri: ws://groupbuying-service:8083
           predicates:
             - Path=/ws-groupbuying/**
+
+        - id: order-service-route
+          uri: http://order-service:8085
+          predicates:
+            - Path=/api/orders/**
 
         - id: ai-assistant-route
           uri: http://ai-assistant-service:8084

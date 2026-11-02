@@ -10,11 +10,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-/**
- * Première moitié du pipeline RAG : transforme une fiche produit en vecteur
- * numérique et l'enregistre dans pgvector, pour qu'elle soit retrouvable
- * plus tard par recherche de similarité (voir ProductRetrievalService).
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -24,25 +19,24 @@ public class ProductIngestionService {
     private final EmbeddingStore<TextSegment> embeddingStore;
 
     public void ingestProduct(ProductIngestionRequest request) {
-
         String enrichedText = buildEnrichedText(request);
-
         Embedding embedding = embeddingModel.embed(enrichedText).content();
 
         Metadata metadata = Metadata.from("productId", request.getProductId().toString());
         TextSegment segment = TextSegment.from(enrichedText, metadata);
 
-        // add(embedding, segment) : stocke le vecteur ET son contenu/metadata,
-        // génère un ID interne automatiquement. C'est la méthode la plus simple
-        // et la plus largement supportée par toutes les implémentations
-        // d'EmbeddingStore (pgvector, in-memory, etc.).
-        //
-        // LIMITE CONNUE : un appel répété pour le même productId crée un
-        // nouveau vecteur plutôt que de mettre à jour l'existant. Acceptable
-        // pour ce projet (chaque produit n'est indexé qu'une fois en démo).
         embeddingStore.add(embedding, segment);
 
-        log.info("Produit {} indexé avec succès dans la base vectorielle.", request.getProductId());
+        log.info("Produit {} indexé dans la base vectorielle.", request.getProductId());
+    }
+
+    /**
+     * Cette version de langchain4j génère elle-même l'identifiant du vecteur, donc on ne peut pas
+     * retrouver le vecteur d'un produit précis pour le supprimer. On le signale clairement.
+     */
+    public void removeProduct(Long productId) {
+        log.warn("Produit {} supprimé du catalogue, mais son vecteur reste dans l'index IA "
+                + "(suppression ciblée non supportée avec cette version).", productId);
     }
 
     private String buildEnrichedText(ProductIngestionRequest request) {

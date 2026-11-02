@@ -7,8 +7,8 @@ spring:
 
   datasource:
     url: jdbc:postgresql://localhost:5432/shopora_catalog
-    username: shopora_admin
-    password: ChangeMe_StrongPass123
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -20,7 +20,7 @@ spring:
         format_sql: true
 
 jwt:
-  secret: shopora_super_secret_jwt_key_change_this_in_production_2026
+  secret: ${JWT_SECRET}
   expiration-ms: 86400000
 
 ---

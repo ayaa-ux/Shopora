@@ -3,36 +3,46 @@ import SockJS from 'sockjs-client'
 import { useAuthStore } from '../store/authStore'
 
 let client = null
-let isConnected = false
+let connected = false
+let currentToken = null
 
-// File d'attente des abonnements demandés AVANT que la connexion STOMP
-// ne soit réellement établie. Nécessaire car GroupBuying.jsx va afficher
-// plusieurs cartes de session en même temps, qui vont toutes essayer de
-// s'abonner quasi simultanément, souvent avant la fin du handshake.
-const pendingSubscriptions = []
+// Registre de TOUS les abonnements souhaités. À chaque (re)connexion on les
+// ré-abonne : plus de perte d'abonnements après une coupure réseau.
+const subscriptions = new Map()
+let nextId = 0
 
-function initClient() {
-    if (client) return client
+function disconnect() {
+    if (client) client.deactivate()
+    client = null
+    connected = false
+    currentToken = null
+}
 
+function ensureClient() {
     const token = useAuthStore.getState().token
+    // Visiteur non connecté : pas de WebSocket (le handshake serait refusé en boucle)
+    if (!token) return null
+    if (client && currentToken === token) return client
+
+    disconnect()
+    currentToken = token
 
     client = new Client({
-        // SockJS gère lui-même la négociation du transport -> on lui donne
-        // une URL http(s), jamais ws(s):// directement.
         webSocketFactory: () =>
-            new SockJS(`${import.meta.env.VITE_API_BASE_URL}/ws-groupbuying?token=${token}`),
-        reconnectDelay: 5000, // tente de se reconnecter automatiquement si la connexion tombe
+            new SockJS(`${import.meta.env.VITE_API_BASE_URL}/ws-groupbuying?token=${encodeURIComponent(token)}`),
+        reconnectDelay: 5000,
     })
 
     client.onConnect = () => {
-        isConnected = true
-        // Traite TOUTES les demandes d'abonnement en attente d'un coup,
-        // plutôt que de risquer d'en perdre si plusieurs arrivent avant
-        // que la connexion ne soit prête (cas garanti sur cette page).
-        pendingSubscriptions.forEach(({ topic, callback, resolve }) => {
-            resolve(client.subscribe(topic, callback))
+        connected = true
+        subscriptions.forEach((entry) => {
+            entry.stompSub = client.subscribe(entry.topic, entry.callback)
         })
-        pendingSubscriptions.length = 0
+    }
+
+    client.onWebSocketClose = () => {
+        connected = false
+        subscriptions.forEach((entry) => { entry.stompSub = null })
     }
 
     client.activate()
@@ -40,23 +50,29 @@ function initClient() {
 }
 
 /**
- * S'abonne à un topic STOMP, peu importe si la connexion est déjà prête
- * ou pas encore. Retourne une Promise résolue avec l'objet "subscription"
- * (utile pour se désabonner proprement au démontage d'un composant).
- *
- * LIMITE CONNUE (à mentionner en soutenance si besoin) : si la connexion
- * est coupée puis rétablie (reconnectDelay), les abonnements existants
- * ne sont pas automatiquement restaurés. Pour ce projet, un simple
- * rechargement de page suffit à corriger ce cas rare.
+ * S'abonne à un topic. Retourne une fonction de désabonnement (appel synchrone).
  */
 export function subscribeToTopic(topic, callback) {
-    const stompClient = initClient()
+    const id = nextId++
+    const entry = { topic, callback, stompSub: null }
+    subscriptions.set(id, entry)
 
-    return new Promise((resolve) => {
-        if (isConnected) {
-            resolve(stompClient.subscribe(topic, callback))
-        } else {
-            pendingSubscriptions.push({ topic, callback, resolve })
-        }
-    })
+    const stompClient = ensureClient()
+    if (stompClient && connected) {
+        entry.stompSub = stompClient.subscribe(topic, callback)
+    }
+
+    return () => {
+        entry.stompSub?.unsubscribe()
+        subscriptions.delete(id)
+    }
 }
+
+// Déconnexion -> on coupe le socket ; connexion -> on (re)connecte si des abonnements attendent.
+useAuthStore.subscribe((state) => {
+    if (!state.token) {
+        disconnect()
+    } else if (subscriptions.size > 0) {
+        ensureClient()
+    }
+})

@@ -4,20 +4,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Même structure que les services précédents, avec en plus IllegalStateException
- * (levée par ParticipationService pour : session déjà rejointe, session pleine,
- * session inactive, pré-autorisation refusée...).
- */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -28,14 +25,20 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
-    /**
-     * Capture toutes les règles métier de ParticipationService :
-     * "Cette session n'est plus active.", "Vous participez déjà à cette session.",
-     * "La pré-autorisation bancaire a été refusée par votre banque."...
-     */
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException ex) {
         return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    // Avant : un VENDOR qui appelait un endpoint CLIENT recevait un 500 (capté par Exception.class)
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
+        return buildErrorResponse(HttpStatus.FORBIDDEN, "Accès refusé : droits insuffisants.");
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Paramètre invalide : " + ex.getName());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

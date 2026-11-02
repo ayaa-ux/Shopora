@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Search, ShoppingBag, Star } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { getAllProducts, searchProducts } from '../api/catalogApi'
 
 function ProductCard({ product, onClick }) {
@@ -24,24 +24,12 @@ function ProductCard({ product, onClick }) {
             </div>
             <div className="p-4">
                 <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-1">
-                    ShopOra
+                    {product.category}
                 </p>
-                <h3 className="font-semibold text-ink text-sm mb-1 truncate">{product.name}</h3>
-                <div className="flex items-center gap-1 mb-2">
-                    <Star size={12} className="text-yellow-400 fill-yellow-400" />
-                    <span className="text-xs text-gray-400">4.5 · 86 avis</span>
-                </div>
-                <div className="flex items-center justify-between">
-          <span className="font-bold text-ink">
-            {product.lowestPrice ? `${product.lowestPrice} MAD` : 'Non disponible'}
-          </span>
-                    <button
-                        onClick={(e) => { e.stopPropagation() }}
-                        className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-ink-light hover:bg-quartz-light hover:text-clay transition-colors"
-                    >
-                        <ShoppingBag size={14} />
-                    </button>
-                </div>
+                <h3 className="font-semibold text-ink text-sm mb-2 truncate">{product.name}</h3>
+                <span className="font-bold text-ink">
+                    {product.lowestPrice ? `${product.lowestPrice} MAD` : 'Non disponible'}
+                </span>
             </div>
         </div>
     )
@@ -51,50 +39,50 @@ const CATEGORIES = ['Tout', 'Mode', 'Électronique', 'Beauté', 'Sport', 'Maison
 
 export default function Catalogue() {
     const navigate = useNavigate()
-    const [searchParams] = useSearchParams()
+    const [searchParams, setSearchParams] = useSearchParams()
+    const urlKeyword = searchParams.get('search') || ''
+
     const [products, setProducts] = useState([])
-    const [keyword, setKeyword] = useState(searchParams.get('search') || '')
+    const [keyword, setKeyword] = useState(urlKeyword)
     const [activeCategory, setActiveCategory] = useState('Tout')
     const [loading, setLoading] = useState(true)
 
+    // La recherche suit l'URL : la recherche de la Navbar (/catalogue?search=...)
+    // filtre maintenant réellement la liste, même si on est déjà sur la page.
     useEffect(() => {
-        loadProducts()
-    }, [])
+        setKeyword(urlKeyword)
+        load(urlKeyword)
+    }, [urlKeyword])
 
-    const loadProducts = async () => {
+    const load = async (kw) => {
         setLoading(true)
         try {
-            const data = await getAllProducts()
-            setProducts(data)
+            setProducts(kw.trim() ? await searchProducts(kw.trim()) : await getAllProducts())
+        } catch {
+            setProducts([])
         } finally {
             setLoading(false)
         }
     }
 
-    const handleSearch = async (e) => {
+    const handleSearch = (e) => {
         e.preventDefault()
-        if (!keyword.trim()) { loadProducts(); return }
-        setLoading(true)
-        try {
-            const data = await searchProducts(keyword)
-            setProducts(data)
-        } finally {
-            setLoading(false)
-        }
+        setSearchParams(keyword.trim() ? { search: keyword.trim() } : {})
     }
 
     const filtered = activeCategory === 'Tout'
         ? products
-        : products.filter(p => p.category?.toLowerCase() === activeCategory.toLowerCase())
+        : products.filter((p) => p.category?.toLowerCase() === activeCategory.toLowerCase())
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="mb-6">
                 <h1 className="font-display text-3xl text-ink font-bold">Catalogue</h1>
-                <p className="text-ink-light mt-1">{filtered.length} produits disponibles.</p>
+                <p className="text-ink-light mt-1">
+                    {filtered.length} produit(s){urlKeyword && ` pour « ${urlKeyword} »`}.
+                </p>
             </div>
 
-            {/* Filtres */}
             <div className="flex flex-wrap gap-3 mb-8 items-center">
                 <form onSubmit={handleSearch} className="relative flex-1 min-w-[200px] max-w-xs">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-light" />

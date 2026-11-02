@@ -1,0 +1,40 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: order-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/shopora_orders
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration-ms: 86400000
+
+# Adresse de catalog-service : les prix et les vendeurs sont relus côté serveur
+# (on ne fait jamais confiance au prix envoyé par le navigateur).
+catalog:
+  service-url: http://localhost:8082
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url: jdbc:postgresql://postgres-db:5432/shopora_orders
+
+catalog:
+  service-url: http://catalog-service:8082

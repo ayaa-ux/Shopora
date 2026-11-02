@@ -7,15 +7,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
- * Endpoint technique d'indexation, réservé à ADMIN (voir justification
- * dans SecurityConfig). Utilisé pour peupler la base vectorielle avant
- * la démonstration/soutenance.
+ * Endpoints techniques d'indexation. Réservés à ADMIN ou à catalog-service
+ * (qui s'authentifie via l'en-tête X-Internal-Key, voir JwtFilter).
  */
 @RestController
 @RequestMapping("/api/assistant")
@@ -29,5 +25,12 @@ public class ProductIngestionController {
     public ResponseEntity<Void> ingestProduct(@Valid @RequestBody ProductIngestionRequest request) {
         productIngestionService.ingestProduct(request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @DeleteMapping("/ingest/{productId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> removeProduct(@PathVariable Long productId) {
+        productIngestionService.removeProduct(productId);
+        return ResponseEntity.noContent().build();
     }
 }

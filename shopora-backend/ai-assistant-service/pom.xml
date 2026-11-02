@@ -64,6 +64,14 @@
             <version>${langchain4j.version}</version>
         </dependency>
 
+        <!-- Embeddings LOCAUX (all-MiniLM-L6-v2, ONNX) : tournent dans le service,
+             sans clé API ni quota. Dimension des vecteurs = 384. -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-embeddings-all-minilm-l6-v2</artifactId>
+            <version>${langchain4j.version}</version>
+        </dependency>
+
         <!-- Connecteur pgvector : stocke et recherche les embeddings
              directement dans PostgreSQL -->
         <dependency>

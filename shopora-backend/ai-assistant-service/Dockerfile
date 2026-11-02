@@ -17,7 +17,8 @@ RUN mvn clean package -DskipTests
 # Étape 2 : image finale, légère. Seul le .jar compilé est copié depuis
 # l'étape précédente -> Maven et le code source ne font PAS partie de
 # l'image livrée, ce qui la rend bien plus petite.
-FROM eclipse-temurin:17-jre-alpine
+# Image Debian (et NON alpine) : le moteur ONNX des embeddings locaux a besoin de glibc.
+FROM eclipse-temurin:17-jre
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 

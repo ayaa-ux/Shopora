@@ -10,6 +10,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-EOSQL
     CREATE DATABASE shopora_catalog;
     CREATE DATABASE shopora_groupbuying;
     CREATE DATABASE shopora_ai;
+    CREATE DATABASE shopora_orders;
 EOSQL
 
 # L'assistant IA a besoin de pgvector pour stocker les embeddings (LangChain).

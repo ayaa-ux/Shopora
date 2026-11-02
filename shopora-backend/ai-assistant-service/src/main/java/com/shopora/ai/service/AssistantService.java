@@ -3,6 +3,7 @@ package com.shopora.ai.service;
 import com.shopora.ai.dto.AssistantRequest;
 import com.shopora.ai.dto.AssistantResponse;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import com.shopora.ai.service.ProductRetrievalService.RelevantProduct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,9 +25,10 @@ public class AssistantService {
 
     public AssistantResponse askAssistant(AssistantRequest request) {
 
-        List<String> relevantProducts = productRetrievalService.findRelevantProducts(request.getQuestion());
+        List<RelevantProduct> relevantProducts = productRetrievalService.findRelevantProducts(request.getQuestion());
 
-        String prompt = buildPrompt(request.getQuestion(), relevantProducts);
+        String prompt = buildPrompt(request.getQuestion(),
+                relevantProducts.stream().map(RelevantProduct::text).toList());
 
         log.info("Question reçue : '{}' - {} produit(s) pertinent(s) trouvé(s)",
                 request.getQuestion(), relevantProducts.size());
@@ -36,6 +38,7 @@ public class AssistantService {
         return AssistantResponse.builder()
                 .answer(aiAnswer)
                 .productsFound(relevantProducts.size())
+                .productIds(relevantProducts.stream().map(RelevantProduct::productId).toList())
                 .build();
     }
 

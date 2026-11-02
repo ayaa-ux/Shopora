@@ -2,34 +2,34 @@ package com.shopora.catalog.repository;
 
 import com.shopora.catalog.entity.ProductOffer;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
-/**
- * Accès à la table "product_offers" (les offres commerciales des vendeurs).
- * C'est ICI que vit la logique de tri du comparateur de prix.
- */
 public interface ProductOfferRepository extends JpaRepository<ProductOffer, Long> {
 
-    /**
-     * Coeur du comparateur de prix : retourne toutes les offres
-     * d'un produit donné, triées du moins cher au plus cher.
-     * Spring Data JPA génère automatiquement la clause
-     * "WHERE product_id = ? ORDER BY price ASC" à partir du nom de la méthode.
-     */
     List<ProductOffer> findByProductIdOrderByPriceAsc(Long productId);
 
-    /**
-     * Retourne toutes les offres publiées par un vendeur précis
-     * (utilisé pour le tableau de bord VENDOR : "mes produits en vente").
-     */
     List<ProductOffer> findByVendorEmail(String vendorEmail);
 
-    /**
-     * Vérifie qu'une offre précise appartient bien à un vendeur précis,
-     * AVANT d'autoriser une modification ou suppression.
-     * Essentiel pour éviter qu'un VENDOR_A modifie le prix d'un VENDOR_B
-     * juste en devinant l'ID de l'offre dans l'URL (faille IDOR classique).
-     */
     boolean existsByIdAndVendorEmail(Long id, String vendorEmail);
+
+    // Un vendeur = une seule offre par produit
+    boolean existsByProductIdAndVendorEmail(Long productId, String vendorEmail);
+
+    // Nécessaire pour supprimer un produit sans violer la clé étrangère
+    void deleteByProductId(Long productId);
+
+    /** Retire du stock de façon atomique. Renvoie 0 si le stock est insuffisant. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update ProductOffer o set o.stockQuantity = o.stockQuantity - :qty "
+            + "where o.id = :id and o.stockQuantity >= :qty")
+    int decrementStock(@Param("id") Long id, @Param("qty") int qty);
+
+    /** Rend du stock (annulation / échec de commande). */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update ProductOffer o set o.stockQuantity = o.stockQuantity + :qty where o.id = :id")
+    int incrementStock(@Param("id") Long id, @Param("qty") int qty);
 }

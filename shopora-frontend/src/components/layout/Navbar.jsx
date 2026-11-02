@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Link, useNavigate } from 'react-router-dom'
-import { Search, ShoppingBag, X } from 'lucide-react'
+import { Search, ShoppingBag, X, Menu } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useCartStore } from '../../store/cartStore'
 import CartDrawer from '../cart/CartDrawer'
@@ -8,13 +8,35 @@ import CartDrawer from '../cart/CartDrawer'
 function Navbar() {
     const navigate = useNavigate()
     const { isAuthenticated, fullName, role, avatarUrl, logout } = useAuthStore()
-    const totalItems = useCartStore((state) => state.totalItems)
+
+    // Sélecteur sur la VALEUR (et non sur la fonction) : le badge se met enfin à jour
+    // à chaque ajout au panier.
+    const cartCount = useCartStore((state) => state.items.reduce((sum, i) => sum + i.quantity, 0))
+
     const [searchOpen, setSearchOpen] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const [cartOpen, setCartOpen] = useState(false)
+    const [menuOpen, setMenuOpen] = useState(false)
+
+    const links = [
+        { to: '/', label: 'Accueil', end: true },
+        { to: '/catalogue', label: 'Catalogue' },
+        { to: '/group-buying', label: 'Groupes' },
+        ...(isAuthenticated && role === 'CLIENT'
+            ? [{ to: '/assistant', label: 'Assistant IA' }, { to: '/orders', label: 'Mes commandes' }]
+            : []),
+        ...(role === 'VENDOR'
+            ? [{ to: '/vendor', label: 'Espace vendeur' }, { to: '/create-session', label: 'Créer un groupe' }]
+            : []),
+        ...(role === 'ADMIN' ? [{ to: '/admin', label: 'Administration' }] : []),
+    ]
+
+    const linkClass = ({ isActive }) =>
+        `text-sm font-medium transition-colors ${isActive ? 'text-clay' : 'text-ink hover:text-clay'}`
 
     const handleLogout = () => {
         logout()
+        setMenuOpen(false)
         navigate('/login')
     }
 
@@ -35,7 +57,6 @@ function Navbar() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
 
-                        {/* Logo */}
                         <Link to="/" className="flex items-center gap-2 shrink-0">
                             <div className="w-9 h-9 rounded-full bg-clay flex items-center justify-center">
                                 <span className="font-display text-linen font-bold text-lg">S</span>
@@ -43,92 +64,13 @@ function Navbar() {
                             <span className="font-display text-xl text-ink">Shopora</span>
                         </Link>
 
-                        {/* Navigation desktop */}
                         <nav className="hidden md:flex items-center gap-6">
-                            <NavLink
-                                to="/"
-                                end
-                                className={({ isActive }) =>
-                                    `text-sm font-medium transition-colors ${isActive ? 'text-clay' : 'text-ink hover:text-clay'}`
-                                }
-                            >
-                                Accueil
-                            </NavLink>
-                            <NavLink
-                                to="/catalogue"
-                                className={({ isActive }) =>
-                                    `text-sm font-medium transition-colors ${isActive ? 'text-clay' : 'text-ink hover:text-clay'}`
-                                }
-                            >
-                                Catalogue
-                            </NavLink>
-                            <NavLink
-                                to="/group-buying"
-                                className={({ isActive }) =>
-                                    `text-sm font-medium transition-colors ${isActive ? 'text-clay' : 'text-ink hover:text-clay'}`
-                                }
-                            >
-                                Groupes
-                            </NavLink>
-
-                            {isAuthenticated && role === 'CLIENT' && (
-                                <>
-                                    <NavLink
-                                        to="/assistant"
-                                        className={({ isActive }) =>
-                                            `text-sm font-medium transition-colors ${isActive ? 'text-clay' : 'text-ink hover:text-clay'}`
-                                        }
-                                    >
-                                        Assistant IA
-                                    </NavLink>
-                                    <NavLink
-                                        to="/orders"
-                                        className={({ isActive }) =>
-                                            `text-sm font-medium transition-colors ${isActive ? 'text-clay' : 'text-ink hover:text-clay'}`
-                                        }
-                                    >
-                                        Mes commandes
-                                    </NavLink>
-                                </>
-                            )}
-
-                            {role === 'VENDOR' && (
-                                <>
-                                    <NavLink
-                                        to="/vendor"
-                                        className={({ isActive }) =>
-                                            `text-sm font-medium transition-colors ${isActive ? 'text-clay' : 'text-ink hover:text-clay'}`
-                                        }
-                                    >
-                                        Espace vendeur
-                                    </NavLink>
-                                    <NavLink
-                                        to="/create-session"
-                                        className={({ isActive }) =>
-                                            `text-sm font-medium transition-colors ${isActive ? 'text-clay' : 'text-ink hover:text-clay'}`
-                                        }
-                                    >
-                                        Créer un groupe
-                                    </NavLink>
-                                </>
-                            )}
-
-                            {role === 'ADMIN' && (
-                                <NavLink
-                                    to="/admin"
-                                    className={({ isActive }) =>
-                                        `text-sm font-medium transition-colors ${isActive ? 'text-clay' : 'text-ink hover:text-clay'}`
-                                    }
-                                >
-                                    Administration
-                                </NavLink>
-                            )}
+                            {links.map(({ to, label, end }) => (
+                                <NavLink key={to} to={to} end={end} className={linkClass}>{label}</NavLink>
+                            ))}
                         </nav>
 
-                        {/* Actions droite */}
                         <div className="flex items-center gap-1 sm:gap-2">
-
-                            {/* Recherche */}
                             {searchOpen ? (
                                 <form onSubmit={handleSearch} className="flex items-center gap-2">
                                     <input
@@ -137,7 +79,7 @@ function Navbar() {
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         placeholder="Rechercher..."
-                                        className="text-sm border border-sand rounded-full px-4 py-1.5 w-36 sm:w-52 focus:outline-none focus:ring-2 focus:ring-clay"
+                                        className="text-sm border border-sand rounded-full px-4 py-1.5 w-32 sm:w-52 focus:outline-none focus:ring-2 focus:ring-clay"
                                     />
                                     <button
                                         type="button"
@@ -156,20 +98,18 @@ function Navbar() {
                                 </button>
                             )}
 
-                            {/* Panier avec badge */}
                             <button
                                 onClick={() => setCartOpen(true)}
                                 className="relative p-2 text-ink-light hover:text-clay rounded-full hover:bg-quartz-light transition-colors"
                             >
                                 <ShoppingBag size={20} />
-                                {totalItems() > 0 && (
+                                {cartCount > 0 && (
                                     <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-clay text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                    {totalItems()}
-                  </span>
+                                        {cartCount}
+                                    </span>
                                 )}
                             </button>
 
-                            {/* Auth */}
                             {isAuthenticated ? (
                                 <div className="flex items-center gap-2 ml-1">
                                     <button
@@ -178,18 +118,14 @@ function Navbar() {
                                         title="Mon profil"
                                     >
                                         {avatarUrl ? (
-                                            <img
-                                                src={avatarUrl}
-                                                alt="avatar"
-                                                className="w-full h-full object-cover"
-                                            />
+                                            <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
                                         ) : (
                                             <span className="text-linen text-sm font-semibold">{initial}</span>
                                         )}
                                     </button>
                                     <button
                                         onClick={handleLogout}
-                                        className="hidden sm:block text-sm text-ink-light hover:text-clay transition-colors"
+                                        className="hidden md:block text-sm text-ink-light hover:text-clay transition-colors"
                                     >
                                         Déconnexion
                                     </button>
@@ -210,12 +146,39 @@ function Navbar() {
                                     </Link>
                                 </div>
                             )}
+
+                            {/* Menu mobile : avant, aucune navigation n'existait sous 768px */}
+                            <button
+                                onClick={() => setMenuOpen(!menuOpen)}
+                                className="md:hidden p-2 text-ink-light hover:text-clay rounded-full"
+                                aria-label="Menu"
+                            >
+                                {menuOpen ? <X size={22} /> : <Menu size={22} />}
+                            </button>
                         </div>
                     </div>
                 </div>
+
+                {menuOpen && (
+                    <nav className="md:hidden border-t border-gray-100 bg-white px-4 py-3 flex flex-col gap-3">
+                        {links.map(({ to, label, end }) => (
+                            <NavLink key={to} to={to} end={end} className={linkClass} onClick={() => setMenuOpen(false)}>
+                                {label}
+                            </NavLink>
+                        ))}
+                        {isAuthenticated ? (
+                            <button onClick={handleLogout} className="text-left text-sm text-ink-light hover:text-clay">
+                                Déconnexion
+                            </button>
+                        ) : (
+                            <Link to="/login" onClick={() => setMenuOpen(false)} className="text-sm font-medium text-ink">
+                                Connexion
+                            </Link>
+                        )}
+                    </nav>
+                )}
             </header>
 
-            {/* Tiroir panier */}
             <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
         </>
     )

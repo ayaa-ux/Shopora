@@ -3,6 +3,8 @@ package com.shopora.groupbuying.repository;
 import com.shopora.groupbuying.entity.Participation;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import com.shopora.groupbuying.entity.PreAuthStatus;
+
 import java.util.List;
 
 /**
@@ -28,4 +30,7 @@ public interface ParticipationRepository extends JpaRepository<Participation, Lo
      * Historique des participations d'un client (page "Mes achats groupés").
      */
     List<Participation> findByClientEmail(String clientEmail);
+
+    // Administration : répartition des paiements simulés
+    long countByPreAuthStatus(PreAuthStatus status);
 }

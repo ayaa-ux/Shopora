@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -13,13 +14,6 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Même structure que les services précédents. Le logging systématique
- * des erreurs imprévues est ICI PARTICULIÈREMENT important : les appels
- * vers OpenAI/Grok peuvent échouer pour des raisons variées (clé API
- * invalide, quota dépassé, timeout réseau...) et on doit pouvoir
- * diagnostiquer rapidement sans deviner.
- */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -28,6 +22,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    // Avant : un VENDOR/ADMIN qui interrogeait l'assistant recevait "temporairement indisponible" (500)
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
+        return buildErrorResponse(HttpStatus.FORBIDDEN, "L'assistant est réservé aux comptes clients.");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -46,12 +46,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
-    /**
-     * Filet de sécurité final : capture aussi bien une vraie erreur serveur
-     * qu'un échec d'appel vers OpenAI/Grok (clé API invalide, quota dépassé,
-     * timeout...). Le client reçoit toujours un message propre et générique,
-     * jamais une exception technique brute liée à un fournisseur externe.
-     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex) {
         logger.error("Erreur interne non gérée (vérifie la clé API / quota si lié à l'IA) : ", ex);

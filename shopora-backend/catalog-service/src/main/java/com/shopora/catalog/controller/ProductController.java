@@ -2,6 +2,7 @@ package com.shopora.catalog.controller;
 
 import com.shopora.catalog.dto.ProductRequest;
 import com.shopora.catalog.dto.ProductResponse;
+import com.shopora.catalog.service.ProductIndexingService;
 import com.shopora.catalog.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -12,22 +13,13 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * Endpoints du CRUD catalogue (fiches produits génériques).
- *
- * Répartition des droits (voir explication du service précédent) :
- * - Lecture (GET) : publique, accessible sans connexion (déjà permis dans SecurityConfig).
- * - Création : VENDOR ou ADMIN.
- * - Modification/Suppression : ADMIN uniquement (une fiche produit est partagée
- *   entre plusieurs vendeurs via leurs offres, donc un seul VENDOR ne doit pas
- *   pouvoir la modifier ou la supprimer unilatéralement).
- */
 @RestController
 @RequestMapping("/api/products")
 @RequiredArgsConstructor
 public class ProductController {
 
     private final ProductService productService;
+    private final ProductIndexingService indexingService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('VENDOR', 'ADMIN')")
@@ -67,5 +59,16 @@ public class ProductController {
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Nouveau : réindexe TOUT le catalogue dans l'assistant IA (à lancer une fois
+     * pour les produits déjà existants avant la démo). Réservé ADMIN.
+     */
+    @PostMapping("/reindex")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> reindexAll() {
+        indexingService.reindexAll();
+        return ResponseEntity.accepted().build();
     }
 }

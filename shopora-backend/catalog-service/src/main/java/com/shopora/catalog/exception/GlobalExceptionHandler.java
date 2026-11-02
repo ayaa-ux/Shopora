@@ -30,6 +30,12 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    /** Conflit métier (ex : stock insuffisant lors d'une réservation). */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException ex) {
+        return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
     /**
      * Capture le refus de propriété (anti-IDOR) levé par ProductOfferService
      * quand un VENDOR tente de modifier/supprimer l'offre d'un autre.

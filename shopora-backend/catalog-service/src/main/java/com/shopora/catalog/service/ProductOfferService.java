@@ -18,16 +18,16 @@ public class ProductOfferService {
 
     private final ProductOfferRepository productOfferRepository;
     private final ProductRepository productRepository;
+    private final ProductIndexingService indexingService;
 
-    /**
-     * Crée une offre commerciale. vendorEmail provient TOUJOURS du token JWT
-     * (extrait dans le Controller via @AuthenticationPrincipal), jamais du corps
-     * de la requête envoyé par React -> empêche un VENDOR de créer une offre
-     * en se faisant passer pour un autre vendeur.
-     */
     public ProductOfferResponse createOffer(ProductOfferRequest request, String vendorEmail) {
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new IllegalArgumentException("Produit introuvable."));
+
+        if (productOfferRepository.existsByProductIdAndVendorEmail(product.getId(), vendorEmail)) {
+            throw new IllegalArgumentException(
+                    "Vous avez déjà une offre sur ce produit. Modifiez-la depuis votre espace vendeur.");
+        }
 
         ProductOffer offer = ProductOffer.builder()
                 .product(product)
@@ -37,13 +37,10 @@ public class ProductOfferService {
                 .build();
 
         productOfferRepository.save(offer);
+        indexingService.indexProduct(product.getId()); // le prix le plus bas a peut-être changé
         return mapToResponse(offer);
     }
 
-    /**
-     * Coeur du comparateur de prix côté API : retourne les offres
-     * d'un produit, déjà triées du moins cher au plus cher.
-     */
     public List<ProductOfferResponse> getOffersByProduct(Long productId) {
         return productOfferRepository.findByProductIdOrderByPriceAsc(productId).stream()
                 .map(this::mapToResponse)
@@ -56,11 +53,6 @@ public class ProductOfferService {
                 .toList();
     }
 
-    /**
-     * Modifie une offre. Vérifie D'ABORD la propriété (anti-IDOR) avant
-     * tout accès aux données -> un VENDOR ne peut jamais modifier l'offre d'un autre,
-     * même en devinant un ID dans l'URL.
-     */
     public ProductOfferResponse updateOffer(Long offerId, ProductOfferRequest request, String vendorEmail) {
         if (!productOfferRepository.existsByIdAndVendorEmail(offerId, vendorEmail)) {
             throw new AccessDeniedException("Vous n'êtes pas autorisé à modifier cette offre.");
@@ -73,6 +65,7 @@ public class ProductOfferService {
         offer.setStockQuantity(request.getStockQuantity());
 
         productOfferRepository.save(offer);
+        indexingService.indexProduct(offer.getProduct().getId());
         return mapToResponse(offer);
     }
 
@@ -80,12 +73,16 @@ public class ProductOfferService {
         if (!productOfferRepository.existsByIdAndVendorEmail(offerId, vendorEmail)) {
             throw new AccessDeniedException("Vous n'êtes pas autorisé à supprimer cette offre.");
         }
+        Long productId = productOfferRepository.findById(offerId)
+                .map(o -> o.getProduct().getId())
+                .orElse(null);
+
         productOfferRepository.deleteById(offerId);
+        if (productId != null) {
+            indexingService.indexProduct(productId);
+        }
     }
 
-    // Nécessaire pour le Home : retrouve une offre précise à partir de son ID
-// (utilisé pour enrichir l'aperçu d'une session de Group Buying avec
-// le nom du produit et son prix d'origine).
     public ProductOfferResponse getOfferById(Long id) {
         ProductOffer offer = productOfferRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Offre introuvable."));

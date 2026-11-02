@@ -3,6 +3,7 @@ $services = @(
     "catalog-service",
     "groupbuying-service",
     "ai-assistant-service",
+    "order-service",
     "api-gateway"
 )
 

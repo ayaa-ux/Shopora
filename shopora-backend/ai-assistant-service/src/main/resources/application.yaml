@@ -6,25 +6,21 @@ spring:
     name: ai-assistant-service
 
 jwt:
-  secret: shopora_super_secret_jwt_key_change_this_in_production_2026
+  secret: ${JWT_SECRET}
   expiration-ms: 86400000
 
 ai:
   chat:
-    api-key: ${XAI_API_KEY:demo-key-to-replace}
-    base-url: https://api.x.ai/v1
-    model-name: grok-2-latest
-
-  embedding:
-    api-key: ${OPENAI_API_KEY:demo-key-to-replace}
-    model-name: text-embedding-3-small
+    api-key: ${AI_API_KEY:${XAI_API_KEY:demo-key-to-replace}}
+    base-url: ${AI_BASE_URL:https://api.x.ai/v1}
+    model-name: ${AI_MODEL:grok-2-latest}
 
   vector-store:
     host: localhost
     port: 5432
     database: shopora_ai
-    user: shopora_admin
-    password: ChangeMe_StrongPass123
+    user: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
 
 ---
 spring:

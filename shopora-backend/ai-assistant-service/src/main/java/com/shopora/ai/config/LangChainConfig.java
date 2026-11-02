@@ -4,7 +4,7 @@ import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
-import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
+import dev.langchain4j.model.embedding.onnx.allminilml6v2.AllMiniLmL6V2EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.pgvector.PgVectorEmbeddingStore;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,13 +37,6 @@ public class LangChainConfig {
 
     @Value("${ai.chat.model-name}")
     private String chatModelName;
-
-    // --- Modèle d'embeddings ---
-    @Value("${ai.embedding.api-key}")
-    private String embeddingApiKey;
-
-    @Value("${ai.embedding.model-name}")
-    private String embeddingModelName;
 
     // --- Connexion pgvector ---
     @Value("${ai.vector-store.host}")
@@ -81,18 +74,13 @@ public class LangChainConfig {
     }
 
     /**
-     * Transforme un texte en vecteur numérique.
-     * "text-embedding-3-small" (OpenAI) produit des vecteurs de dimension 1536 :
-     * cette valeur DOIT correspondre EXACTEMENT à celle déclarée dans
-     * embeddingStore() ci-dessous, sinon pgvector refusera l'insertion.
+     * Embeddings LOCAUX : all-MiniLM-L6-v2 s'exécute dans le service (ONNX),
+     * gratuit, sans clé API. Il produit des vecteurs de dimension 384 : cette
+     * valeur DOIT correspondre à celle déclarée dans embeddingStore().
      */
     @Bean
     public EmbeddingModel embeddingModel() {
-        return OpenAiEmbeddingModel.builder()
-                .apiKey(embeddingApiKey)
-                .modelName(embeddingModelName)
-                .timeout(Duration.ofSeconds(60))
-                .build();
+        return new AllMiniLmL6V2EmbeddingModel();
     }
 
     /**
@@ -110,7 +98,7 @@ public class LangChainConfig {
                 .user(vectorStoreUser)
                 .password(vectorStorePassword)
                 .table("product_embeddings")
-                .dimension(1536) // doit correspondre à text-embedding-3-small
+                .dimension(384) // doit correspondre à all-MiniLM-L6-v2
                 .createTable(true)
                 .build();
     }

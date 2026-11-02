@@ -8,22 +8,18 @@ import com.shopora.catalog.repository.ProductOfferRepository;
 import com.shopora.catalog.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
 
-/**
- * Logique métier du CRUD catalogue.
- * Note : la vérification des rôles (VENDOR/ADMIN) n'est PAS faite ici,
- * mais via @PreAuthorize directement sur le Controller (étape suivante).
- * Ce service se concentre uniquement sur la logique métier "pure".
- */
 @Service
 @RequiredArgsConstructor
 public class ProductService {
 
     private final ProductRepository productRepository;
     private final ProductOfferRepository productOfferRepository;
+    private final ProductIndexingService indexingService;
 
     public ProductResponse createProduct(ProductRequest request) {
         Product product = Product.builder()
@@ -34,6 +30,7 @@ public class ProductService {
                 .build();
 
         productRepository.save(product);
+        indexingService.indexProduct(product.getId());
         return mapToResponse(product);
     }
 
@@ -71,21 +68,24 @@ public class ProductService {
         product.setImageUrl(request.getImageUrl());
 
         productRepository.save(product);
+        indexingService.indexProduct(product.getId());
         return mapToResponse(product);
     }
 
+    /**
+     * Supprime d'abord les offres liées (sinon violation de clé étrangère -> erreur 500),
+     * puis le produit, puis retire le produit de l'index de l'assistant IA.
+     */
+    @Transactional
     public void deleteProduct(Long id) {
         if (!productRepository.existsById(id)) {
             throw new IllegalArgumentException("Produit introuvable.");
         }
+        productOfferRepository.deleteByProductId(id);
         productRepository.deleteById(id);
+        indexingService.removeProduct(id);
     }
 
-    /**
-     * Convertit une entité Product en DTO, en calculant au passage
-     * le prix le plus bas parmi toutes les offres existantes.
-     * C'est ici que le comparateur de prix "rentre" dans la grille catalogue.
-     */
     private ProductResponse mapToResponse(Product product) {
         List<ProductOffer> offers = productOfferRepository.findByProductIdOrderByPriceAsc(product.getId());
         BigDecimal lowestPrice = offers.isEmpty() ? null : offers.get(0).getPrice();

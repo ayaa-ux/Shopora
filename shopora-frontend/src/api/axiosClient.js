@@ -1,20 +1,11 @@
 import axios from 'axios'
 import { useAuthStore } from '../store/authStore'
 
-/**
- * Instance Axios unique, réutilisée par TOUS les fichiers api/*.js du projet
- * (authApi.js, catalogApi.js, groupBuyingApi.js, assistantApi.js...).
- * Centraliser ici l'ajout du token JWT évite de répéter cette logique
- * dans chaque appel HTTP individuel.
- */
 const axiosClient = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL,
     headers: { 'Content-Type': 'application/json' },
 })
 
-// Intercepteur de REQUÊTE : attache automatiquement "Authorization: Bearer <token>"
-// à chaque appel sortant, si l'utilisateur est connecté. C'est exactement
-// le header que JwtFilter attend côté backend, sur les 5 microservices.
 axiosClient.interceptors.request.use((config) => {
     const token = useAuthStore.getState().token
     if (token) {
@@ -23,15 +14,21 @@ axiosClient.interceptors.request.use((config) => {
     return config
 })
 
-// Intercepteur de RÉPONSE : si le backend renvoie 401 (token expiré ou
-// invalide), on déconnecte proprement l'utilisateur côté frontend plutôt
-// que de le laisser face à des erreurs silencieuses sur chaque page.
+// 401 = session expirée -> déconnexion. MAIS pas pour /api/auth/* (un mot de passe
+// incorrect renvoie aussi 401 : avant, la page se rechargeait et le message d'erreur
+// disparaissait) ni quand l'utilisateur n'avait pas de token.
 axiosClient.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401) {
+        const status = error.response?.status
+        const isAuthCall = (error.config?.url || '').includes('/api/auth/')
+        const hadToken = !!useAuthStore.getState().token
+
+        if (status === 401 && hadToken && !isAuthCall) {
             useAuthStore.getState().logout()
-            window.location.href = '/login'
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login'
+            }
         }
         return Promise.reject(error)
     }

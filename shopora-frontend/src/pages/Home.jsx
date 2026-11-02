@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getAllProducts, getOffersByProduct, getOfferById, getProductById } from '../api/catalogApi'
+import { getAllProducts, getOffersByProduct, getOfferById, getProductById, getSimilarProducts } from '../api/catalogApi'
 import { getActiveSessions } from '../api/groupBuyingApi'
 import HeroSection from '../components/home/HeroSection'
 import FeaturedGroupCard from '../components/home/FeaturedGroupCard'
@@ -8,7 +8,7 @@ import ComparatorShowcase from '../components/home/ComparatorShowcase'
 import AssistantShowcase from '../components/home/AssistantShowcase'
 import CTASection from '../components/home/CTASection'
 import Footer from '../components/home/Footer'
-import { Star, ShoppingBag } from 'lucide-react'
+import { ShoppingBag } from 'lucide-react'
 
 function PopularProductCard({ product, onClick }) {
     return (
@@ -32,10 +32,6 @@ function PopularProductCard({ product, onClick }) {
             <div className="p-4">
                 <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">ShopOra</p>
                 <h3 className="font-semibold text-ink text-sm mb-1 truncate">{product.name}</h3>
-                <div className="flex items-center gap-1 mb-2">
-                    <Star size={12} className="text-yellow-400 fill-yellow-400" />
-                    <span className="text-xs text-gray-400">4.5 · 86 avis</span>
-                </div>
                 <div className="flex items-center justify-between">
           <span className="font-bold text-ink text-sm">
             {product.lowestPrice ? `${product.lowestPrice} MAD` : 'Non disponible'}
@@ -56,8 +52,7 @@ export default function Home() {
     const navigate = useNavigate()
     const [featuredGroups, setFeaturedGroups] = useState([])
     const [popularProducts, setPopularProducts] = useState([])
-    const [comparatorProduct, setComparatorProduct] = useState(null)
-    const [comparatorOffers, setComparatorOffers] = useState([])
+    const [comparatorRows, setComparatorRows] = useState([])
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -106,12 +101,32 @@ export default function Home() {
             // Produits populaires : les 4 premiers avec au moins une offre
             setPopularProducts(products.slice(0, 4))
 
-            // Comparateur : premier produit ayant des offres
-            const withOffers = products.find(p => p.lowestPrice !== null)
-            if (withOffers) {
-                setComparatorProduct(withOffers)
-                setComparatorOffers(await getOffersByProduct(withOffers.id))
-            }
+            // Comparateur : on prend, parmi les produits ayant des offres, celui qui offre
+            // le plus de choix (ses offres + les produits similaires), triés par prix
+            const candidates = products.filter(p => p.lowestPrice !== null).slice(0, 8)
+            const analysed = await Promise.all(candidates.map(async (p) => {
+                try {
+                    const [offers, similar] = await Promise.all([
+                        getOffersByProduct(p.id),
+                        getSimilarProducts(p.id).catch(() => []),
+                    ])
+                    const rows = [
+                        ...offers.map(o => ({
+                            key: `o${o.id}`, productId: p.id, productName: p.name,
+                            vendorEmail: o.vendorEmail, price: Number(o.price), stock: o.stockQuantity,
+                        })),
+                        ...similar.filter(x => x.bestPrice != null).map(x => ({
+                            key: `s${x.bestOfferId}`, productId: x.id, productName: x.name,
+                            vendorEmail: x.bestVendorEmail, price: Number(x.bestPrice), stock: null,
+                        })),
+                    ].filter(r => r.stock === null || r.stock > 0)
+                    return rows
+                } catch {
+                    return []
+                }
+            }))
+            const best = analysed.sort((a, b) => b.length - a.length)[0] || []
+            setComparatorRows([...best].sort((a, b) => a.price - b.price))
         } finally {
             setLoading(false)
         }
@@ -162,10 +177,7 @@ export default function Home() {
             </section>
 
             {/* Comparateur de prix */}
-            <ComparatorShowcase
-                product={comparatorProduct}
-                offers={comparatorOffers}
-            />
+            <ComparatorShowcase rows={comparatorRows} />
 
             {/* Assistant IA */}
             <AssistantShowcase />

@@ -1,11 +1,14 @@
+import { useNavigate } from 'react-router-dom'
+
 /**
- * Vitrine du comparateur de prix, avec un produit RÉEL du catalogue
- * (le premier qui a déjà des offres) -> contrairement au mockup, pas de
- * colonnes "Note"/"Livraison" : ces données n'existent pas dans notre
- * modèle (hors cahier des charges). On affiche le Stock à la place,
- * une donnée réellement présente en base.
+ * Vitrine du comparateur de prix avec des données RÉELLES : offres d'un produit
+ * du catalogue + meilleures offres de ses produits similaires, triées par prix.
+ * Chaque ligne mène à la fiche produit correspondante.
  */
-function ComparatorShowcase({ product, offers }) {
+function ComparatorShowcase({ rows = [] }) {
+    const navigate = useNavigate()
+    const visible = rows.slice(0, 4)
+
     return (
         <section className="px-4 py-14 sm:px-8 bg-quartz-light/40">
             <div className="max-w-5xl mx-auto grid sm:grid-cols-2 gap-10 items-center">
@@ -18,31 +21,37 @@ function ComparatorShowcase({ product, offers }) {
                     </p>
                 </div>
 
-                {product && offers?.length > 0 ? (
+                {visible.length > 0 ? (
                     <div className="bg-linen border border-sand rounded-2xl overflow-hidden">
-                        <div className="grid grid-cols-3 text-xs font-semibold text-ink-light uppercase tracking-wide px-5 py-3 border-b border-sand">
+                        <div className="grid grid-cols-[1.6fr_1fr_0.8fr] gap-3 text-xs font-semibold text-ink-light uppercase tracking-wide px-5 py-3 border-b border-sand">
                             <span>Vendeur</span>
                             <span>Prix</span>
                             <span className="text-right">Stock</span>
                         </div>
-                        {offers.slice(0, 3).map((offer, index) => (
-                            <div
-                                key={offer.id}
-                                className={`grid grid-cols-3 items-center px-5 py-4 text-sm ${
-                                    index < offers.length - 1 ? 'border-b border-sand' : ''
+                        {visible.map((row, index) => (
+                            <button
+                                key={row.key}
+                                onClick={() => navigate(`/catalogue/${row.productId}`)}
+                                className={`w-full text-left grid grid-cols-[1.6fr_1fr_0.8fr] gap-3 items-center px-5 py-4 text-sm hover:bg-white/60 transition-colors ${
+                                    index < visible.length - 1 ? 'border-b border-sand' : ''
                                 }`}
                             >
-                                <span className="text-ink truncate">{offer.vendorEmail}</span>
-                                <span className="font-mono text-ink">
-                  {offer.price} MAD
-                                    {index === 0 && (
-                                        <span className="ml-2 bg-clay text-linen text-[10px] px-2 py-0.5 rounded-full">
-                      Meilleur prix
-                    </span>
+                                <span className="min-w-0">
+                                    <span className="block text-ink truncate">{row.vendorEmail}</span>
+                                    <span className="block text-xs text-ink-light truncate">{row.productName}</span>
+                                </span>
+                                <span>
+                                    <span className="block font-mono text-ink">{row.price} MAD</span>
+                                    {index === 0 && visible.length > 1 && (
+                                        <span className="inline-block mt-1 bg-clay text-linen text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap">
+                                            Meilleur prix
+                                        </span>
                                     )}
-                </span>
-                                <span className="text-right text-ink-light">{offer.stockQuantity} en stock</span>
-                            </div>
+                                </span>
+                                <span className="text-right text-ink-light">
+                                    {row.stock == null ? 'En stock' : `${row.stock} en stock`}
+                                </span>
+                            </button>
                         ))}
                     </div>
                 ) : (

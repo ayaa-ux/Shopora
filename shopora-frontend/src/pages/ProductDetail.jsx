@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Star, ShoppingBag, ArrowLeft, Shield, Truck } from 'lucide-react'
+import { ShoppingBag, ArrowLeft, Shield, Truck } from 'lucide-react'
 import { getProductById, getOffersByProduct, createOffer } from '../api/catalogApi'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
@@ -130,23 +130,6 @@ export default function ProductDetail() {
                     <h1 className="font-display text-3xl font-bold text-ink mb-3">
                         {product.name}
                     </h1>
-
-                    <div className="flex items-center gap-2 mb-4">
-                        <div className="flex items-center gap-0.5">
-                            {[1, 2, 3, 4, 5].map((i) => (
-                                <Star
-                                    key={i}
-                                    size={14}
-                                    className={
-                                        i <= 4
-                                            ? 'text-yellow-400 fill-yellow-400'
-                                            : 'text-gray-200 fill-gray-200'
-                                    }
-                                />
-                            ))}
-                        </div>
-                        <span className="text-sm text-gray-400">4.5 · 86 avis</span>
-                    </div>
 
                     {product.description && (
                         <p className="text-ink-light text-sm leading-relaxed mb-6">
